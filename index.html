@@ -1,0 +1,785 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="Price hedged long+short trades on Papertrade: cost per PAPER minted.">
+<title>Papertrade Hedge Calculator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Nunito:wght@600;800&display=swap" rel="stylesheet">
+<style>
+/* Layout: inputs rail left (sticky on desktop), results right. Skins: classic (cream), night, uwu. Simple mode hides .adv. */
+:root{
+  --bg:#f1e9d7; --surface:#fbf6ea; --surface-2:#efe5d0;
+  --ink:#1c1a15; --ink-2:#4d463a; --ink-3:#7f7463;
+  --line:#d8ccb2; --line-2:#c3b697; --edge:#b9ab8a; --grid:#e1d6bd;
+  --accent:#1e6a49; --on-accent:#f7fff9;
+  --s1:#1e7a54; --s2:#c4532b; --s3:#d19a1f; --s4:#8d8372;
+  --good:#1e6a49; --good-bg:#dcead9; --bad:#a93a2a; --bad-bg:#f4dcd3; --warn:#85560a; --warn-bg:#f5e5bf; --info:#2c5d8f; --info-bg:#dde7ef;
+  --font-sans:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --font-mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]):not([data-skin]){
+    --bg:#0e1116; --surface:#161b23; --surface-2:#1d2430;
+    --ink:#eef1f5; --ink-2:#b9c1ce; --ink-3:#8993a4;
+    --line:#2a3340; --line-2:#3a4657; --edge:#06080b; --grid:#263040;
+    --accent:#5fd0a0; --on-accent:#0b1713;
+    --s1:#4fc79a; --s2:#ff875a; --s3:#e8b73c; --s4:#7f8a9b;
+    --good:#5fd0a0; --good-bg:#15302a; --bad:#ff8a80; --bad-bg:#3a1c1c; --warn:#e8b73c; --warn-bg:#382b0e; --info:#7db4f2; --info-bg:#14263d;
+    color-scheme:dark;
+  }
+}
+:root[data-skin="night"],:root[data-theme="dark"]:not([data-skin]){
+  --bg:#0e1116; --surface:#161b23; --surface-2:#1d2430;
+  --ink:#eef1f5; --ink-2:#b9c1ce; --ink-3:#8993a4;
+  --line:#2a3340; --line-2:#3a4657; --edge:#06080b; --grid:#263040;
+  --accent:#5fd0a0; --on-accent:#0b1713;
+  --s1:#4fc79a; --s2:#ff875a; --s3:#e8b73c; --s4:#7f8a9b;
+  --good:#5fd0a0; --good-bg:#15302a; --bad:#ff8a80; --bad-bg:#3a1c1c; --warn:#e8b73c; --warn-bg:#382b0e; --info:#7db4f2; --info-bg:#14263d;
+  color-scheme:dark;
+}
+:root[data-skin="uwu"]{
+  --bg:#1b1636; --surface:#2a2251; --surface-2:#352c66;
+  --ink:#fff3fb; --ink-2:#e5d6f7; --ink-3:#b8a8da;
+  --line:#4b4084; --line-2:#6052a3; --edge:#110d28; --grid:#43397d;
+  --accent:#ff8fc8; --on-accent:#3a0f2c;
+  --s1:#ff9ccf; --s2:#8fe0ff; --s3:#ffd36e; --s4:#b8a8da;
+  --good:#8ff0c8; --good-bg:#1f4a4a; --bad:#ff9aa8; --bad-bg:#52203f; --warn:#ffd36e; --warn-bg:#4b3a4a; --info:#9fd7ff; --info-bg:#243a6b;
+  --font-sans:'Nunito','IBM Plex Sans',system-ui,sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-sans);font-size:15px;line-height:1.5;-webkit-text-size-adjust:100%;position:relative;min-height:100%}
+.sky{position:fixed;inset:0;pointer-events:none;display:none;z-index:0}
+:root[data-skin="uwu"] .sky{display:block;animation:twinkle 4s ease-in-out infinite alternate;background:
+  radial-gradient(1.5px 1.5px at 12% 18%,#fff,transparent 60%),radial-gradient(2px 2px at 28% 62%,#ffd6ec,transparent 60%),
+  radial-gradient(1.5px 1.5px at 47% 9%,#fff,transparent 60%),radial-gradient(2px 2px at 63% 40%,#cfe9ff,transparent 60%),
+  radial-gradient(1.5px 1.5px at 81% 22%,#fff,transparent 60%),radial-gradient(2px 2px at 90% 71%,#ffd6ec,transparent 60%),
+  radial-gradient(1.5px 1.5px at 8% 84%,#fff,transparent 60%),radial-gradient(1.5px 1.5px at 55% 88%,#fff,transparent 60%),
+  radial-gradient(600px 320px at 85% 0%,rgba(255,143,200,.22),transparent 70%),radial-gradient(520px 320px at 0% 100%,rgba(143,224,255,.14),transparent 70%)}
+@keyframes twinkle{from{opacity:.7}to{opacity:1}}
+.wrap{position:relative;z-index:1;max-width:1080px;margin:0 auto;padding-inline:16px;padding-block:20px 40px}
+a{color:var(--accent);font-weight:600}
+.top{display:flex;flex-wrap:wrap;gap:12px 16px;align-items:center;justify-content:space-between;margin-bottom:16px}
+.brand{display:flex;flex-direction:column;line-height:1.15;min-width:0}
+h1{margin:0;font-family:var(--font-mono);font-weight:500;font-size:clamp(20px,4.5vw,26px);letter-spacing:-.01em}
+:root[data-skin="uwu"] h1{font-family:var(--font-sans);font-weight:800}
+.tag{font-size:12px;color:var(--ink-3);margin-top:3px}
+.ctl{display:flex;flex-wrap:wrap;gap:10px;flex:1 1 320px;justify-content:flex-end}
+.ctl .seg{flex:1 1 150px;max-width:260px}
+.card{background:var(--surface);border:1.5px solid var(--line-2);border-radius:16px;padding:16px;box-shadow:0 4px 0 var(--edge)}
+h2{margin:0 0 4px;font-size:16px;font-weight:600}
+.sub2{margin:0 0 12px;font-size:13px;color:var(--ink-2)}
+.what p{margin:6px 0 12px;color:var(--ink-2);max-width:70ch}
+.what b{color:var(--ink);font-weight:600}
+.steps{display:flex;flex-wrap:wrap;gap:8px;margin:0;padding:0;list-style:none;counter-reset:s}
+.steps li{counter-increment:s;display:flex;align-items:center;gap:8px;background:var(--surface-2);border-radius:999px;padding:5px 12px 5px 5px;font-size:13px;font-weight:600}
+.steps li::before{content:counter(s);display:flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--accent);color:var(--on-accent);font-size:12px}
+.layout{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;align-items:start;margin-top:16px}
+@media (min-width:900px){.layout{grid-template-columns:350px minmax(0,1fr);gap:20px}.inputs{position:sticky;top:16px}}
+.inputs{display:flex;flex-direction:column;gap:16px}
+.field{display:flex;flex-direction:column;gap:7px;min-width:0}
+.field label,.field .lab,.levhead label{font-size:13px;font-weight:600;color:var(--ink)}
+.hint{font-size:12px;color:var(--ink-3);margin:0}
+.err{font-size:12px;color:var(--bad);margin:0}
+.err:empty{display:none}
+input[type=number],select{font-family:var(--font-mono);font-size:16px;color:var(--ink);background:var(--surface-2);border:1.5px solid var(--line-2);border-radius:10px;padding:9px 11px;width:100%;min-height:44px;box-shadow:inset 0 2px 0 rgba(0,0,0,.06)}
+select{font-family:var(--font-sans)}
+input[type=number]:focus,select:focus{outline:2px solid var(--accent);outline-offset:1px;background:var(--surface)}
+.levhead{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.levin{display:flex;align-items:center;gap:6px;font-family:var(--font-mono);color:var(--ink-2)}
+.levin input{width:92px;text-align:right}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:14px;border-radius:999px;border:1.5px solid var(--line-2);background:linear-gradient(90deg,var(--good),var(--warn),var(--bad));margin:10px 0 4px;padding:0;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:30px;height:30px;border-radius:50%;background:var(--surface);border:2.5px solid var(--ink);box-shadow:0 3px 0 var(--edge);cursor:grab;transition:transform .1s}
+input[type=range]::-moz-range-thumb{width:26px;height:26px;border-radius:50%;background:var(--surface);border:2.5px solid var(--ink);box-shadow:0 3px 0 var(--edge);cursor:grab}
+input[type=range]:active::-webkit-slider-thumb{transform:scale(1.18);cursor:grabbing}
+input[type=range]:focus-visible{outline:2px solid var(--accent);outline-offset:6px}
+.ends{display:flex;justify-content:space-between;font-size:12px;color:var(--ink-3)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip,.btn{font-family:var(--font-mono);font-size:13px;font-weight:500;color:var(--ink);background:var(--surface);border:1.5px solid var(--line-2);border-radius:999px;padding:6px 12px;min-height:34px;cursor:pointer;box-shadow:0 3px 0 var(--edge);transition:transform .08s,box-shadow .08s}
+.chip:hover,.btn:hover{border-color:var(--ink-3)}
+.chip:active,.btn:active{transform:translateY(3px);box-shadow:0 0 0 var(--edge)}
+.btn{font-family:var(--font-sans);font-weight:600;font-size:14px;border-radius:12px;padding:9px 16px;min-height:42px}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.seg{display:grid;grid-template-columns:repeat(var(--n,2),minmax(0,1fr));gap:6px;position:relative}
+.seg.n3{--n:3}
+.seg input{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}
+.seg label{display:flex;align-items:center;justify-content:center;text-align:center;min-height:42px;padding:6px 8px;border:1.5px solid var(--line-2);border-radius:10px;background:var(--surface);color:var(--ink-2);font-weight:600;font-size:14px;cursor:pointer;user-select:none;box-shadow:0 3px 0 var(--edge);transition:transform .08s,box-shadow .08s,background .15s,color .15s}
+.seg label:hover{border-color:var(--ink-3)}
+.seg label:active{transform:translateY(2px);box-shadow:0 1px 0 var(--edge)}
+.seg input:checked+label{background:var(--accent);border-color:var(--accent);color:var(--on-accent);transform:translateY(2px);box-shadow:0 1px 0 var(--edge)}
+.seg input:focus-visible+label{outline:2px solid var(--accent);outline-offset:3px}
+.seg.sm label{min-height:36px;font-size:13px}
+.check{display:flex;gap:10px;align-items:flex-start;font-size:14px;cursor:pointer}
+.check input{margin-top:3px;width:20px;height:20px;accent-color:var(--accent)}
+.sep{border:0;border-top:1.5px dashed var(--line-2);margin:0}
+.row2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
+[data-mode="simple"] .adv{display:none!important}
+.results{display:flex;flex-direction:column;gap:16px;min-width:0}
+.hero .lab{font-size:13px;font-weight:600;color:var(--ink-2)}
+.hero .big{font-family:var(--font-mono);font-size:clamp(46px,12vw,68px);line-height:1.05;font-weight:500;letter-spacing:-.03em;font-variant-numeric:tabular-nums lining-nums;margin:2px 0 6px}
+:root[data-skin="uwu"] .hero .big{font-family:var(--font-sans);font-weight:800;color:var(--accent)}
+.hero .sub{margin:0 0 8px;color:var(--ink-2);max-width:62ch}
+.hero .verdict{margin:0;font-weight:600;color:var(--ink);max-width:62ch}
+.legs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.leg{border-radius:14px;padding:14px;border:1.5px solid currentColor;box-shadow:0 3px 0 var(--edge);min-width:0}
+.leg .who{font-size:12px;font-weight:600;letter-spacing:.02em}
+.leg .amt{font-family:var(--font-mono);font-size:clamp(22px,6vw,30px);font-weight:500;margin:4px 0;font-variant-numeric:tabular-nums}
+:root[data-skin="uwu"] .leg .amt{font-family:var(--font-sans);font-weight:800}
+.leg .lsub{font-size:12.5px;line-height:1.35;opacity:.92}
+.leg.win{background:var(--good-bg);color:var(--good)}
+.leg.loss{background:var(--warn-bg);color:var(--warn)}
+.leg.liq{background:var(--bad-bg);color:var(--bad)}
+.leg.flat{background:var(--surface-2);color:var(--ink-3)}
+.net{grid-column:1/-1;text-align:center;font-weight:600;background:var(--surface-2);border-radius:12px;padding:10px 12px;border:1.5px dashed var(--line-2)}
+.net b{font-family:var(--font-mono);font-weight:500}
+.kpis{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+@media (min-width:560px){.kpis{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.kpi{background:var(--surface);border:1.5px solid var(--line-2);border-radius:12px;padding:12px;min-width:0}
+.kpi .k{font-size:12px;color:var(--ink-3)}
+.kpi .v{font-family:var(--font-mono);font-size:19px;font-weight:500;margin-top:2px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.kpi .s{font-size:12px;color:var(--ink-3);margin-top:2px}
+.cyc{margin:0;font-size:13px;color:var(--ink-2)}
+.notices{display:flex;flex-direction:column;gap:8px}
+.note{border-radius:12px;padding:10px 12px;font-size:13.5px;line-height:1.45}
+.note b{font-weight:600}
+.note.bad{background:var(--bad-bg);color:var(--bad)}
+.note.warn{background:var(--warn-bg);color:var(--warn)}
+.note.info{background:var(--info-bg);color:var(--info)}
+.hmw{overflow-x:auto;padding-bottom:4px}
+table.hm{width:100%;min-width:300px;table-layout:fixed;border-collapse:separate;border-spacing:3px;font-size:11px}
+.hm th,.hm td{padding:0;border:0}
+.hm thead th{font-size:11px;font-weight:600;color:var(--ink-3);text-align:center;padding-bottom:4px;font-family:var(--font-mono)}
+.hm thead th:first-child{width:40px}
+.hm tbody th{font-size:11px;font-weight:600;color:var(--ink-3);text-align:right;padding-right:6px;font-family:var(--font-mono)}
+.cell{display:block;width:100%;height:34px;padding:0;border:0;border-radius:8px;background:var(--surface-2);font-family:var(--font-mono);font-size:11px;font-weight:500;color:var(--ink);cursor:pointer;transition:transform .08s;font-variant-numeric:tabular-nums}
+.cell:hover{transform:scale(1.08);position:relative;z-index:2}
+.cell:active{transform:scale(.92)}
+.cell.cur{outline:2.5px solid var(--ink);outline-offset:1px;animation:pulse 1.6s ease-in-out infinite}
+.cell.liq{color:var(--ink-3);background:repeating-linear-gradient(45deg,var(--surface-2) 0 4px,var(--line-2) 4px 5px)}
+@keyframes pulse{50%{outline-offset:3px}}
+.hmlg{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12px;color:var(--ink-2);margin-top:10px}
+.hmlg i{display:inline-block;width:16px;height:12px;border-radius:3px}
+.hatch{background:repeating-linear-gradient(45deg,var(--surface-2) 0 4px,var(--line-2) 4px 5px)}
+.cnote{font-size:12px;color:var(--ink-3);margin:8px 0 0}
+.stack{display:flex;height:24px;border-radius:8px;overflow:hidden;gap:2px;background:var(--surface)}
+.stack span{display:block;height:100%;min-width:0}
+.legend{display:grid;grid-template-columns:minmax(0,1fr);gap:6px;margin:12px 0 0;padding:0;list-style:none;font-size:13px}
+@media (min-width:560px){.legend{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.legend li{display:flex;align-items:center;gap:8px;min-width:0}
+.sw{width:10px;height:10px;border-radius:3px;flex:none}
+.legend .nm{color:var(--ink-2)}
+.legend .am{margin-left:auto;font-family:var(--font-mono);font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+.cw{position:relative;width:100%;height:240px}
+.lg{display:flex;flex-wrap:wrap;gap:14px;margin:0 0 8px;font-size:12px;color:var(--ink-2)}
+.lg span{display:flex;align-items:center;gap:6px}
+.dash{width:16px;height:0;border-top:2px dashed var(--s2)}
+.line{width:16px;height:0;border-top:2px solid var(--s1)}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--s1);box-shadow:0 0 0 2px var(--surface)}
+.actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.flash{font-size:13px;color:var(--good)}
+details{font-size:14px;color:var(--ink-2)}
+summary{cursor:pointer;font-weight:600;color:var(--ink);font-size:15px}
+details ul{margin:10px 0 0;padding-left:18px;display:flex;flex-direction:column;gap:6px}
+code{font-family:var(--font-mono);font-size:12.5px;background:var(--surface-2);padding:1px 5px;border-radius:4px;color:var(--ink)}
+.foot{margin:20px 0 0;font-size:12px;color:var(--ink-3);max-width:80ch}
+.spark{position:fixed;width:8px;height:8px;border-radius:50%;pointer-events:none;z-index:99;animation:spark .65s ease-out forwards}
+@keyframes spark{from{transform:translate(0,0) scale(1);opacity:1}to{transform:translate(var(--dx),var(--dy)) scale(.2);opacity:0}}
+@media (prefers-reduced-motion: reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+[hidden]{display:none!important}
+</style>
+<script>(function(){var r=document.documentElement,s=null,m=null;try{s=localStorage.getItem('pt-skin');m=localStorage.getItem('pt-mode');}catch(e){}if(!/^(classic|night|uwu)$/.test(s||''))s=(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)?'night':'classic';if(!/^(simple|advanced)$/.test(m||''))m='simple';r.setAttribute('data-skin',s);r.setAttribute('data-mode',m);})();</script>
+
+<div class="sky" aria-hidden="true"></div>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <h1 id="ttl">Hedge cost per PAPER</h1>
+      <span class="tag">A calculator for papertrade.xyz</span>
+    </div>
+    <div class="ctl">
+      <div class="seg sm" role="radiogroup" aria-label="Mode">
+        <input type="radio" name="mode" id="mode-simple" value="simple"><label for="mode-simple">Simple</label>
+        <input type="radio" name="mode" id="mode-advanced" value="advanced"><label for="mode-advanced">Advanced</label>
+      </div>
+      <div class="seg sm n3" role="radiogroup" aria-label="Theme">
+        <input type="radio" name="skin" id="skin-classic" value="classic"><label for="skin-classic">Classic</label>
+        <input type="radio" name="skin" id="skin-night" value="night"><label for="skin-night">Night</label>
+        <input type="radio" name="skin" id="skin-uwu" value="uwu"><label for="skin-uwu">UwU</label>
+      </div>
+    </div>
+  </header>
+
+  <section class="card what">
+    <h2>Hedged trades on Papertrade, priced</h2>
+    <p>On <a href="https://papertrade.xyz" target="_blank" rel="noopener">Papertrade</a>, open a <b>long and a short on the same coin</b> at the same time, then close both. Price direction stops mattering: one side wins, one loses, and you mostly pay the small win-side haircut. The losing side <b>mints PAPER</b>. This shows what that costs per PAPER.</p>
+    <ol class="steps"><li>Open long + short</li><li>Close both</li><li>The loser mints PAPER</li></ol>
+  </section>
+
+  <div class="layout">
+    <form class="card inputs" id="f" onsubmit="return false" autocomplete="off">
+      <div class="field">
+        <span class="lab" id="mk-l">Coin</span>
+        <div class="seg" role="radiogroup" aria-labelledby="mk-l">
+          <input type="radio" name="mkt" id="mkt-btc" value="BTC" checked><label for="mkt-btc">BTC</label>
+          <input type="radio" name="mkt" id="mkt-eth" value="ETH"><label for="mkt-eth">ETH</label>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="margin">Margin per side ($)</label>
+        <input type="number" id="margin" inputmode="decimal" min="0" step="any" value="100">
+        <div class="chips" id="marChips" aria-label="Margin presets">
+          <button type="button" class="chip" data-v="50">$50</button>
+          <button type="button" class="chip" data-v="100">$100</button>
+          <button type="button" class="chip" data-v="500">$500</button>
+          <button type="button" class="chip" data-v="1000">$1000</button>
+        </div>
+        <p class="err" id="e-margin"></p>
+      </div>
+
+      <div class="field">
+        <div class="levhead">
+          <label for="lev">Leverage</label>
+          <div class="levin"><input type="number" id="lev" inputmode="decimal" min="1" max="1000" step="any" value="50"><span>×</span></div>
+        </div>
+        <input type="range" id="levR" min="0" max="1000" step="1" value="566" aria-label="Leverage slider">
+        <div class="ends"><span>1× safe</span><span>1000× wild</span></div>
+        <div class="chips" id="levChips" aria-label="Leverage presets">
+          <button type="button" class="chip" data-v="10">10×</button>
+          <button type="button" class="chip" data-v="25">25×</button>
+          <button type="button" class="chip" data-v="50">50×</button>
+          <button type="button" class="chip" data-v="100">100×</button>
+          <button type="button" class="chip" data-v="250">250×</button>
+          <button type="button" class="chip" data-v="1000">1000×</button>
+        </div>
+        <p class="hint" id="posInfo"></p>
+        <p class="err" id="e-lev"></p>
+      </div>
+
+      <div class="field">
+        <label for="rate">Current PAPER mint rate (per $1 of loss)</label>
+        <input type="number" id="rate" inputmode="decimal" min="0" max="100" step="any" value="12.2">
+        <p class="hint">Copy it from the Papertrade dashboard. It starts at 100 and only falls as more losses come in.</p>
+        <p class="err" id="e-rate"></p>
+      </div>
+
+      <div id="sameBox" class="field">
+        <label for="mv">Price move when you close both (%)</label>
+        <input type="number" id="mv" inputmode="decimal" min="0" step="any" value="0.5">
+        <div class="chips" id="mvChips" aria-label="Move presets">
+          <button type="button" class="chip" data-v="0.01">0.01%</button>
+          <button type="button" class="chip" data-v="0.05">0.05%</button>
+          <button type="button" class="chip" data-v="0.1">0.1%</button>
+          <button type="button" class="chip" data-v="0.25">0.25%</button>
+          <button type="button" class="chip" data-v="0.5">0.5%</button>
+          <button type="button" class="chip" data-v="1">1%</button>
+          <button type="button" class="chip" data-v="2">2%</button>
+        </div>
+        <p class="hint">How far price travels from your entry to the moment you close. One side wins this much, the other loses the same.</p>
+        <p class="err" id="e-mv"></p>
+      </div>
+
+      <div class="adv field" style="gap:14px">
+        <hr class="sep">
+        <label class="check"><input type="checkbox" id="diff"><span>Close the two sides at different prices</span></label>
+        <div id="diffBox" hidden class="field" style="gap:12px">
+          <div class="row2">
+            <div class="field"><label for="ma">Long closes at (%)</label><input type="number" id="ma" inputmode="decimal" step="any" value="0.5"><p class="err" id="e-ma"></p></div>
+            <div class="field"><label for="mb">Short closes at (%)</label><input type="number" id="mb" inputmode="decimal" step="any" value="0.5"><p class="err" id="e-mb"></p></div>
+          </div>
+          <p class="hint">From the shared entry price. Positive means above entry. The long wins when price is up, the short wins when it is down.</p>
+          <div class="field"><label for="first">Which side closes first</label><select id="first"><option value="long">Long first</option><option value="short">Short first</option></select></div>
+        </div>
+        <div class="field">
+          <label for="queue">Payout queue</label>
+          <select id="queue"><option value="empty">Empty (loss mints at 98%)</option><option value="active">Active (loss mints at 100%)</option></select>
+          <p class="hint">With an empty queue, 2% of a losing close goes to the LP as a fee and PAPER mints on the rest.</p>
+        </div>
+        <div class="field">
+          <label for="cyc">Cycles to repeat</label>
+          <input type="number" id="cyc" inputmode="numeric" min="1" max="100000" step="1" value="1">
+          <p class="err" id="e-cyc"></p>
+        </div>
+      </div>
+    </form>
+
+    <div class="results">
+      <section class="card hero" aria-live="polite">
+        <div class="lab" id="heroLab">Cost per PAPER</div>
+        <div class="big" id="heroNum">—</div>
+        <p class="sub" id="heroSub"></p>
+        <p class="verdict" id="heroVerdict"></p>
+      </section>
+
+      <div class="legs" id="legs"></div>
+      <div class="notices" id="notices"></div>
+      <div class="kpis adv" id="kpis"></div>
+      <p class="cyc adv" id="cyc-line" hidden></p>
+
+      <section class="card">
+        <h2>How leverage and price move change the cost</h2>
+        <p class="sub2">Each square is one hedged trade, both sides closed at the same price. Tap one to try it.</p>
+        <div class="seg n3 adv" role="radiogroup" aria-label="Heatmap metric" style="margin-bottom:10px">
+          <input type="radio" name="hm" id="hm-cpp" value="cpp" checked><label for="hm-cpp">Cost per PAPER</label>
+          <input type="radio" name="hm" id="hm-cost" value="cost"><label for="hm-cost">Net cost</label>
+          <input type="radio" name="hm" id="hm-paper" value="paper"><label for="hm-paper">PAPER minted</label>
+        </div>
+        <p class="cnote" style="margin:0 0 6px">Leverage down the side, price move across the top.</p>
+        <div class="hmw"><div id="heat"></div></div>
+        <div class="hmlg" id="hmlg"></div>
+        <p class="cnote" id="hmRead" aria-live="polite"></p>
+        <p class="cnote" id="hmNote"></p>
+      </section>
+
+      <section class="card adv">
+        <h2>Where the winner's gain goes</h2>
+        <p class="sub2">Deadband, impact haircut and the 2% win fee, taken in that order. The loser pays its full loss with nothing extra.</p>
+        <div class="stack" id="stack" role="img" aria-label="Breakdown of the winning side's raw gain"></div>
+        <ul class="legend" id="legend"></ul>
+      </section>
+
+      <section class="card adv">
+        <h2>Cost per PAPER at different moves</h2>
+        <p class="sub2">Your margin, leverage and settings, both sides closing at the same price. Lower is better.</p>
+        <div class="lg"><span><i class="line"></i>Hedged (long + short)</span><span><i class="dash"></i>Losing one trade, unhedged</span><span><i class="dot"></i>Your close</span></div>
+        <div class="cw"><canvas id="c1" role="img" aria-label="Line chart of cost per PAPER for a hedged cycle versus an unhedged loss across price moves on a log scale">Hedged cost per PAPER falls as the price move grows. An unhedged loss stays much higher.</canvas></div>
+        <p class="cnote" id="c1note"></p>
+      </section>
+
+      <section class="card adv">
+        <h2>Share of the winner's gain you keep</h2>
+        <p class="sub2">After deadband, impact haircut and the 2% fee. Small moves lose most of the gain.</p>
+        <div class="cw"><canvas id="c2" role="img" aria-label="Line chart of the share of the winning side's raw gain kept after haircut and fee across price moves on a log scale">The share kept rises from near zero at tiny moves to about 88 percent at a 1 percent move.</canvas></div>
+        <p class="cnote" id="c2note"></p>
+      </section>
+
+      <div class="actions">
+        <button type="button" class="btn" id="copy">Copy result</button>
+        <span class="flash" id="flash" role="status"></span>
+      </div>
+
+      <section class="card adv">
+        <details>
+          <summary>How this is calculated</summary>
+          <ul>
+            <li>Both sides open at the same entry price (Hyperliquid BBO mid). There is no spread, funding, slippage or gas charged to you.</li>
+            <li>Winning side: the gain is measured as if the exit were 0.2 bps worse (deadband), then scaled by <code>0.9 / (1 + 1/(move×15000) + 100000/(10⁶×move×k))</code> where <code>k</code> is 814.598 for BTC and 483.979 for ETH, then 2% comes off. These are launch values and the owner can change them.</li>
+            <li>Losing side: you pay the raw loss. PAPER mints on that loss (98% of it when the payout queue is empty, 100% when it is active) at the current mint rate.</li>
+            <li>Liquidation: crossing the bust price forfeits the whole margin, and PAPER mints on all of it. Bust is taken as a move of 1 ÷ leverage against that side. The docs put the real bust slightly closer, so liquidation checks here are approximate.</li>
+            <li>Mint rate: 100 per $1 at the start, then <code>100 × (120M ÷ (120M + H))²</code> once tracked LP passes $2M, where H is the tail progress. It only goes down. Type in the rate your dashboard shows.</li>
+            <li>Cost per PAPER is net cost divided by PAPER minted. It is the PAPER price at which one cycle breaks even.</li>
+            <li>Not modelled: payout-queue delay on the winner's profit (your margin returns at once, the profit can wait), open-interest caps per side, minimum margin and position size, the $10M cap per position, close timing between blocks, owner rule changes, and what PAPER is worth. Repeated cycles assume the same rate each time, though your own losses push it down.</li>
+          </ul>
+        </details>
+      </section>
+    </div>
+  </div>
+  <p class="foot">Independent community tool, not affiliated with Papertrade. Figures come from the public docs and may be out of date. Not financial advice. Check the numbers with one small cycle first.</p>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+(function(){
+  var PM={BTC:814.598,ETH:483.979};
+  var BASE=0.10,RM=15000,REF=100000,DB=1/50000,FEE=0.02;
+  var REDUCE=!!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches);
+  var root=document.documentElement;
+  function $(id){return document.getElementById(id);}
+  function store(k,v){try{localStorage.setItem(k,v);}catch(e){}}
+  function buzz(ms){try{if(navigator.vibrate)navigator.vibrate(ms||8);}catch(e){}}
+
+  function winCalc(m,N,pm){
+    var raw=N*m, dbAmt=Math.min(raw,N*DB), mp=m-DB;
+    if(mp<=0)return{raw:raw,db:raw,impact:0,fee:0,keep:0,scale:0};
+    var g1=raw-dbAmt;
+    var t1=1/(mp*RM), t2=REF/(1e6*mp*pm);
+    var scale=(1-BASE)/(1+t1+t2);
+    var g2=g1*scale;
+    return{raw:raw,db:dbAmt,impact:g1-g2,fee:g2*FEE,keep:g2*(1-FEE),scale:scale};
+  }
+  function run(p){
+    var N=p.margin*p.lev, bust=1/p.lev, pm=PM[p.mkt], rate=p.rate, qf=p.queue==='active'?1:0.98;
+    var visL=p.first==='long'?[0,p.a]:[0,p.b,p.a];
+    var visS=p.first==='long'?[0,p.a,p.b]:[0,p.b];
+    var liqL=Math.min.apply(null,visL)<=-bust, liqS=Math.max.apply(null,visS)>=bust;
+    function mk(name,mw,liq,closeAt){
+      var o={name:name,mw:mw,closeAt:closeAt,state:'flat',raw:0,net:0,basis:0,w:null};
+      if(liq){o.state='liq';o.net=-p.margin;o.basis=p.margin;o.raw=-p.margin;}
+      else if(mw>0){o.state='win';o.w=winCalc(mw,N,pm);o.raw=o.w.raw;o.net=o.w.keep;}
+      else if(mw<0){var L=Math.min(N*-mw,p.margin);o.state='loss';o.raw=-L;o.net=-L;o.basis=L*qf;}
+      o.paper=o.basis*rate;
+      return o;
+    }
+    var Lg=mk('Long',p.a,liqL,p.a), Sg=mk('Short',-p.b,liqS,p.b);
+    var net=Lg.net+Sg.net, paper=Lg.paper+Sg.paper, cost=-net;
+    return{N:N,bust:bust,rate:rate,qf:qf,legs:[Lg,Sg],net:net,paper:paper,cost:cost,
+      cpp:(cost>0&&paper>0)?cost/paper:null, unh:1/(qf*rate)};
+  }
+  function winnerSum(r){
+    var s={raw:0,db:0,impact:0,fee:0,keep:0,n:0};
+    r.legs.forEach(function(l){if(l.state==='win'){s.raw+=l.w.raw;s.db+=l.w.db;s.impact+=l.w.impact;s.fee+=l.w.fee;s.keep+=l.w.keep;s.n++;}});
+    return s;
+  }
+
+  function usd(v){var a=Math.abs(v),s=v<0?'-':'';if(a>=1000)return s+'$'+Math.round(a).toLocaleString('en-US');if(a>=1)return s+'$'+a.toFixed(2);return s+'$'+a.toFixed(4);}
+  function num(v){return Math.round(v).toLocaleString('en-US');}
+  function pct(v,d){return (v*100).toFixed(d===undefined?1:d)+'%';}
+  function mvLabel(m){return parseFloat((m*100).toPrecision(3))+'%';}
+  function sgn(m){return (m>0?'+':'')+parseFloat((m*100).toPrecision(3))+'%';}
+  function fmtCpp(v){return '$'+v.toFixed(4);}
+
+  function tween(el,to,fmt){
+    cancelAnimationFrame(el._r);
+    var from=(typeof el._cur==='number')?el._cur:to;
+    if(REDUCE||from===to){el._cur=to;el.textContent=fmt(to);return;}
+    var t0=performance.now();
+    (function f(t){
+      var k=Math.min(1,(t-t0)/380), e=1-Math.pow(1-k,3);
+      el._cur=from+(to-from)*e; el.textContent=fmt(el._cur);
+      if(k<1)el._r=requestAnimationFrame(f); else{el._cur=to;el.textContent=fmt(to);}
+    })(t0);
+  }
+  function burst(x,y){
+    if(REDUCE)return;
+    var cols=['var(--accent)','var(--s2)','var(--s3)'];
+    for(var i=0;i<10;i++){
+      var s=document.createElement('i'), a=Math.PI*2*i/10+Math.random()*.5, d=26+Math.random()*28;
+      s.className='spark'; s.style.left=x+'px'; s.style.top=y+'px'; s.style.background=cols[i%3];
+      s.style.setProperty('--dx',Math.cos(a)*d+'px'); s.style.setProperty('--dy',Math.sin(a)*d+'px');
+      document.body.appendChild(s); setTimeout((function(n){return function(){n.remove();};})(s),700);
+    }
+  }
+
+  function readInputs(){
+    var errs={},p={};
+    p.adv=root.getAttribute('data-mode')==='advanced';
+    p.mkt=document.querySelector('input[name=mkt]:checked').value;
+    p.margin=parseFloat($('margin').value); if(!(p.margin>0))errs.margin='Enter a margin above 0.';
+    p.lev=parseFloat($('lev').value); if(!(p.lev>=1&&p.lev<=1000))errs.lev='Enter leverage from 1 to 1000.';
+    p.rate=parseFloat($('rate').value); if(!(p.rate>0&&p.rate<=100))errs.rate='Enter a rate above 0 and up to 100.';
+    p.diff=p.adv&&$('diff').checked;
+    if(!p.diff){
+      var m=parseFloat($('mv').value)/100;
+      if(!(m>=0&&m<=1))errs.mv='Enter a move between 0 and 100.';
+      p.a=m;p.b=m;
+    }else{
+      p.a=parseFloat($('ma').value)/100; if(!isFinite(p.a)||Math.abs(p.a)>1)errs.ma='Enter a number between -100 and 100.';
+      p.b=parseFloat($('mb').value)/100; if(!isFinite(p.b)||Math.abs(p.b)>1)errs.mb='Enter a number between -100 and 100.';
+    }
+    p.first=$('first').value; p.queue=p.adv?$('queue').value:'empty';
+    p.cyc=p.adv?parseInt($('cyc').value,10):1; if(!(p.cyc>=1&&p.cyc<=100000))errs.cyc='Enter a whole number from 1 to 100000.';
+    ['margin','lev','rate','mv','ma','mb','cyc'].forEach(function(k){var e=$('e-'+k);if(e)e.textContent=errs[k]||'';});
+    return{p:p,ok:Object.keys(errs).length===0};
+  }
+
+  var c1=null,c2=null;
+  function colors(){
+    var cs=getComputedStyle(root);
+    function g(n){return cs.getPropertyValue(n).trim();}
+    return{s1:g('--s1'),s2:g('--s2'),grid:g('--grid'),tick:g('--ink-3'),ink:g('--ink'),surface:g('--surface'),line:g('--line-2')};
+  }
+  function xTick(v){
+    var e=Math.pow(10,Math.floor(Math.log10(v))), lead=Math.round(v/e);
+    if(lead===1||lead===2||lead===5)return parseFloat((v*100).toPrecision(2))+'%';
+    return '';
+  }
+  function makeChart(el,yfmt){
+    var c=colors();
+    return new Chart(el,{
+      type:'line',
+      data:{datasets:[
+        {label:'Hedged',data:[],parsing:false,borderColor:c.s1,borderWidth:2,pointRadius:0,pointHoverRadius:4,tension:0.15,borderJoinStyle:'round'},
+        {label:'Unhedged',data:[],parsing:false,borderColor:c.s2,borderWidth:2,borderDash:[6,4],pointRadius:0,pointHoverRadius:0,tension:0},
+        {label:'Your close',data:[],parsing:false,showLine:false,backgroundColor:c.s1,borderColor:c.surface,borderWidth:2,pointRadius:6,pointHoverRadius:6}
+      ]},
+      options:{
+        responsive:true,maintainAspectRatio:false,animation:false,
+        interaction:{mode:'x',intersect:false},
+        layout:{padding:{right:8,top:6}},
+        plugins:{legend:{display:false},tooltip:{
+          filter:function(it){return it.datasetIndex<2;},
+          callbacks:{
+            title:function(items){return items.length?'Move '+parseFloat((items[0].parsed.x*100).toPrecision(3))+'%':'';},
+            label:function(it){return it.dataset.label+': '+yfmt(it.parsed.y);}
+          }}},
+        scales:{
+          x:{type:'logarithmic',grid:{display:false},ticks:{callback:xTick,font:{size:11},maxRotation:0},title:{display:true,text:'Price move from entry',font:{size:11}}},
+          y:{min:0,grid:{color:c.grid},ticks:{callback:yfmt,font:{size:11}}}
+        }
+      }
+    });
+  }
+  function themeChart(c){
+    var k=colors();
+    c.data.datasets[0].borderColor=k.s1; c.data.datasets[1].borderColor=k.s2;
+    c.data.datasets[2].backgroundColor=k.s1; c.data.datasets[2].borderColor=k.surface;
+    c.options.scales.x.grid.color=k.grid; c.options.scales.y.grid.color=k.grid;
+    c.options.scales.x.ticks.color=k.tick; c.options.scales.y.ticks.color=k.tick; c.options.scales.x.title.color=k.tick;
+    c.options.scales.x.border={color:k.line}; c.options.scales.y.border={color:k.line};
+    var t=c.options.plugins.tooltip;
+    t.backgroundColor=k.surface; t.titleColor=k.ink; t.bodyColor=k.ink; t.borderColor=k.line; t.borderWidth=1;
+  }
+  function updateCharts(p,r){
+    if(!window.Chart)return;
+    if(!c1){
+      c1=makeChart($('c1'),function(v){return '$'+Number(v).toFixed(3);});
+      c2=makeChart($('c2'),function(v){return Math.round(v)+'%';});
+      c2.options.scales.y.max=100;
+      c2.data.datasets[1].hidden=true;
+    }
+    var x0=0.000025, x1=Math.min(0.1,0.98/p.lev), n1=$('c1note'), n2=$('c2note');
+    if(!(x1>x0*1.5)){
+      [c1,c2].forEach(function(c){c.data.datasets.forEach(function(d){d.data=[];});c.update();});
+      n1.textContent=n2.textContent='At this leverage the liquidation distance is too small to chart. Lower the leverage to see the curve.';
+      return;
+    }
+    var pts=[],steps=70;
+    for(var i=0;i<=steps;i++){pts.push(x0*Math.pow(x1/x0,i/steps));}
+    var hed=[],unh=[],keep=[],ymax=0;
+    pts.forEach(function(m){
+      var q=run({mkt:p.mkt,margin:p.margin,lev:p.lev,a:m,b:m,first:'long',queue:p.queue,rate:p.rate});
+      var w=winnerSum(q), y=q.cpp===null?q.unh:q.cpp;
+      hed.push({x:m,y:y}); unh.push({x:m,y:q.unh}); keep.push({x:m,y:w.raw>0?100*w.keep/w.raw:0});
+      ymax=Math.max(ymax,y,q.unh);
+    });
+    c1.data.datasets[0].data=hed; c1.data.datasets[1].data=unh; c2.data.datasets[0].data=keep;
+    [c1,c2].forEach(function(c){c.options.scales.x.min=x0;c.options.scales.x.max=x1;});
+    c1.options.scales.y.max=ymax*1.1;
+    var showMarker=!p.diff && p.a>=x0 && p.a<=x1, w2=winnerSum(r);
+    c1.data.datasets[2].data=(showMarker&&r.cpp!==null)?[{x:p.a,y:r.cpp}]:[];
+    c2.data.datasets[2].data=(showMarker&&w2.raw>0)?[{x:p.a,y:100*w2.keep/w2.raw}]:[];
+    themeChart(c1);themeChart(c2);
+    c1.update();c2.update();
+    var msg='Charted up to '+mvLabel(x1)+', just inside the liquidation distance.';
+    if(p.diff)msg='The charts assume both sides close at the same price. '+msg;
+    else if(!showMarker)msg='Your close is outside the charted range. '+msg;
+    n1.textContent=msg; n2.textContent=msg;
+  }
+
+  var HM_LEV=[5,10,25,50,100,250,500,1000], HM_MV=[0.0002,0.001,0.0025,0.005,0.01,0.02], hmMetric='cpp';
+  function addVal(arr,v){if(!arr.some(function(x){return Math.abs(x-v)<1e-9;}))arr.push(v);arr.sort(function(a,b){return a-b;});}
+  function fmtCents(v){var c=v*100;return (c>=10?Math.round(c):parseFloat(c.toPrecision(2)))+'¢';}
+  function fmtUsdS(v){if(v>=1e6)return '$'+(v/1e6).toFixed(1)+'M';if(v>=1e4)return '$'+Math.round(v/1e3)+'k';if(v>=1e3)return '$'+(v/1e3).toFixed(1)+'k';if(v>=100)return '$'+Math.round(v);if(v>=10)return '$'+v.toFixed(1);return '$'+v.toFixed(2);}
+  function fmtNumS(v){if(v>=1e6)return (v/1e6).toFixed(1)+'M';if(v>=1e4)return Math.round(v/1e3)+'k';if(v>=1e3)return (v/1e3).toFixed(1)+'k';return String(Math.round(v));}
+  function mix(x){return 'color-mix(in srgb,var(--s1) '+Math.round(x)+'%,var(--surface))';}
+  function renderHeat(p){
+    var metric=p.adv?hmMetric:'cpp';
+    var levs=HM_LEV.slice(), mvs=HM_MV.slice();
+    addVal(levs,p.lev);
+    if(!p.diff&&p.a>0)addVal(mvs,p.a);
+    var cells=[],vals=[];
+    levs.forEach(function(L){mvs.forEach(function(m){
+      var c={L:L,m:m,liq:m>=1/L};
+      if(!c.liq){
+        var q=run({mkt:p.mkt,margin:p.margin,lev:L,a:m,b:m,first:'long',queue:p.queue,rate:p.rate});
+        c.cost=q.cost;c.paper=q.paper;c.cpp=q.cpp;
+        c.v=metric==='cpp'?q.cpp:(metric==='cost'?q.cost:q.paper);
+        if(c.v>0)vals.push(c.v);
+      }
+      cells.push(c);
+    });});
+    var lo=Math.min.apply(null,vals), hi=Math.max.apply(null,vals);
+    function shade(v){if(!(v>0))return 10;if(!(hi>lo))return 30;return 10+42*(Math.log(v)-Math.log(lo))/(Math.log(hi)-Math.log(lo));}
+    function lab(L){return parseFloat(L.toPrecision(3))+'×';}
+    var h='<table class="hm"><thead><tr><th></th>'+mvs.map(function(m){return '<th>'+mvLabel(m)+'</th>';}).join('')+'</tr></thead><tbody>';
+    var i=0, curD='';
+    levs.forEach(function(L){
+      h+='<tr><th scope="row">'+lab(L)+'</th>';
+      mvs.forEach(function(m){
+        var c=cells[i++], cur=(!p.diff&&Math.abs(L-p.lev)<1e-9&&Math.abs(m-p.a)<1e-9), d, txt, st='';
+        if(c.liq){
+          d=lab(L)+' at '+mvLabel(m)+': one side gets liquidated before you close (bust about ±'+(100/L).toFixed(2)+'%).';
+          txt='liq';
+        }else{
+          d=lab(L)+' at '+mvLabel(m)+': net cost '+usd(c.cost)+', '+num(c.paper)+' PAPER, '+(c.cpp!==null?'$'+c.cpp.toFixed(4):'n/a')+' per PAPER.';
+          txt=metric==='cpp'?(c.cpp!==null?fmtCents(c.cpp):'n/a'):(metric==='cost'?fmtUsdS(c.cost):fmtNumS(c.paper));
+          st=' style="background:'+mix(shade(c.v))+'"';
+        }
+        if(cur)curD=d;
+        h+='<td><button type="button" class="cell'+(c.liq?' liq':'')+(cur?' cur':'')+'" data-l="'+L+'" data-m="'+m+'" data-d="'+d+'" aria-label="'+d+'"'+st+'>'+txt+'</button></td>';
+      });
+      h+='</tr>';
+    });
+    h+='</tbody></table>';
+    $('heat').innerHTML=h;
+    $('hmlg').innerHTML='<span>Cheaper</span>'+[10,20,31,41,52].map(function(x){return '<i style="background:'+mix(x)+'"></i>';}).join('')+'<span>Pricier</span><span style="margin-left:8px"><i class="hatch"></i> Liquidated</span>';
+    $('hmRead').textContent=curD?'Your setup: '+curD:'Tap a square to load its leverage and move.';
+    var nt=p.adv?{
+      cpp:'Squares show cents per PAPER (1.3¢ is $0.013). Leverage barely changes it. Leverage mostly decides where liquidation starts, the hatched squares.',
+      cost:'Squares show what one cycle costs in dollars. It grows with leverage because the position is bigger.',
+      paper:'Squares show PAPER minted per cycle at your margin and mint rate.'
+    }[metric]:'Squares show cents per PAPER (1.3¢ is $0.013). Lighter is cheaper. Hatched squares get liquidated before you can close.';
+    $('hmNote').textContent=(p.diff?'Assumes both sides close at the same price. ':'')+nt;
+  }
+
+  var last=null;
+  function update(){
+    var rd=readInputs();
+    if(!rd.ok)return;
+    var p=rd.p, r=run(p), w=winnerSum(r), cute=root.getAttribute('data-skin')==='uwu';
+    last={p:p,r:r};
+    $('ttl').textContent=cute?'Hedge cost per PAPER ✧':'Hedge cost per PAPER';
+    $('heroLab').textContent=cute?'Cost per PAPER (◕‿◕✿)':'Cost per PAPER';
+    $('posInfo').textContent='Each side is a '+usd(r.N)+' position. Liquidated at about ±'+(r.bust*100).toFixed(r.bust*100<1?3:2)+'%.';
+
+    var closeTxt=p.diff?('Long closes at '+sgn(p.a)+', short at '+sgn(p.b)+'.'):('Price moves '+mvLabel(p.a)+' and you close both.');
+    var intro='Long and short on '+p.mkt+', $'+p.margin+' each at '+p.lev+'×. '+closeTxt+' ';
+    var heroNum=$('heroNum'), sub, verdict='';
+    if(r.paper<=0){
+      cancelAnimationFrame(heroNum._r); heroNum._cur=undefined; heroNum.textContent='—';
+      sub=intro+'No PAPER is minted. One side has to close at a loss, so give price room to move.';
+    }else if(r.cost<=0){
+      cancelAnimationFrame(heroNum._r); heroNum._cur=undefined; heroNum.textContent='$0';
+      sub=intro+'You finish '+usd(-r.cost)+' ahead and still mint '+num(r.paper)+' PAPER.';
+      verdict='That only happens when one side is liquidated or the sides close far apart, so you are carrying direction, not hedged.';
+    }else{
+      tween(heroNum,r.cpp,fmtCpp);
+      sub=intro+'You pay about '+usd(r.cost)+' and get '+num(r.paper)+' PAPER.';
+      var adv=r.unh/r.cpp;
+      verdict=adv>=1.05?(adv.toFixed(1)+'× cheaper per PAPER than losing one normal trade ('+fmtCpp(r.unh)+')'+(cute?' ✧':'.')):('About the same as losing one normal trade ('+fmtCpp(r.unh)+' per PAPER), because the move is too small for the winner to keep much.');
+    }
+    $('heroSub').textContent=sub; $('heroVerdict').textContent=verdict;
+
+    function legTile(l){
+      var head={win:'wins',loss:'loses',liq:'liquidated',flat:'flat'}[l.state];
+      var at=l.state==='liq'?'at bust':'at '+sgn(l.closeAt);
+      var amt=l.state==='flat'?'$0':(l.net>0?'+'+usd(l.net):usd(l.net));
+      var s2=l.state==='win'?(usd(l.w.raw)+' gain, '+usd(l.net)+' after haircut and fee'):
+             l.state==='loss'?('Mints '+num(l.paper)+' PAPER'):
+             l.state==='liq'?('Loses all margin. Mints '+num(l.paper)+' PAPER'):'No move, no result';
+      return '<div class="leg '+l.state+'"><div class="who">'+l.name+' '+head+' '+at+'</div><div class="amt">'+amt+'</div><div class="lsub">'+s2+'</div></div>';
+    }
+    var netTxt=r.cost>0?('Net: you pay <b>'+usd(r.cost)+'</b> and get <b>'+num(r.paper)+' PAPER</b>'):(r.cost<0?('Net: you finish <b>'+usd(-r.cost)+'</b> ahead and get <b>'+num(r.paper)+' PAPER</b>'):'Net: nothing happens');
+    $('legs').innerHTML=r.legs.map(legTile).join('')+'<div class="net">'+netTxt+'</div>';
+
+    $('kpis').innerHTML=
+      kpi('Net cost per cycle',r.cost>0?usd(r.cost):(r.cost<0?'+'+usd(-r.cost):'$0'),'Loser pays, winner returns')+
+      kpi('PAPER minted',num(r.paper),'At '+r.rate.toFixed(1)+' per $1')+
+      kpi('Winner keeps',w.raw>0?pct(w.keep/w.raw):'—','Of its raw gain')+
+      kpi('Cost vs volume',r.cost>0?(r.cost/(2*r.N)*1e4).toFixed(1)+' bps':'—','Of '+usd(2*r.N)+' traded');
+    var cl=$('cyc-line');
+    if(p.adv&&p.cyc>1){cl.hidden=false;cl.textContent='× '+p.cyc.toLocaleString('en-US')+' cycles: cost '+usd(r.cost*p.cyc)+', PAPER '+num(r.paper*p.cyc)+', volume '+usd(2*r.N*p.cyc)+'. Assumes the same mint rate every cycle.';}
+    else cl.hidden=true;
+
+    var nt=[];
+    var liqNames=r.legs.filter(function(l){return l.state==='liq';}).map(function(l){return l.name.toLowerCase();});
+    if(liqNames.length){
+      nt.push(['bad','<b>Liquidation:</b> the '+liqNames.join(' and ')+' side reaches its bust price (about ±'+(r.bust*100).toFixed(2)+'%) before you close. It forfeits its full margin and mints PAPER on it. The other side is then an open directional position, so close it right away.']);
+    }else{
+      var vL=p.first==='long'?[0,p.a]:[0,p.b,p.a], vS=p.first==='long'?[0,p.a,p.b]:[0,p.b];
+      var adv2=Math.max(-Math.min.apply(null,vL),Math.max.apply(null,vS));
+      if(adv2>=0.85*r.bust)nt.push(['warn','<b>Close to liquidation:</b> price gets within 15% of a bust distance. The docs put bust slightly before equity runs out, so treat this as too tight.']);
+    }
+    if(r.N>10e6)nt.push(['bad','<b>Over the position cap:</b> each side is above the $10M maximum in the docs, so the open would be rejected.']);
+    var winMove=Math.max(p.a,-p.b);
+    if(!liqNames.length&&winMove>0&&winMove<=DB)nt.push(['warn','<b>Inside the deadband:</b> a win under 0.2 bps (0.002%) pays nothing, so you bear the whole loss.']);
+    if(p.diff&&!liqNames.length&&Math.abs(p.a-p.b)>0){
+      var d=r.N*(p.a-p.b);
+      nt.push(['info','<b>Not neutral:</b> your sides close '+(Math.abs(p.a-p.b)*100).toFixed(3)+'% apart in price. That leaves about '+usd(Math.abs(d))+' of raw directional '+(d>0?'gain':'loss')+' before haircut, on top of the costs shown.']);
+    }
+    if(p.rate<99.5)nt.push(['info','<b>Rate has decayed:</b> each $1 of loss now mints '+r.rate.toFixed(1)+' PAPER, not 100. Every loss pushes it lower, so later cycles cost more per PAPER.']);
+    $('notices').innerHTML=nt.map(function(n){return '<div class="note '+n[0]+'">'+n[1]+'</div>';}).join('');
+
+    var st=$('stack'), lg=$('legend');
+    if(w.raw>0){
+      var segs=[['You keep',w.keep,'var(--s1)'],['Impact haircut',w.impact,'var(--s2)'],['2% win fee',w.fee,'var(--s3)'],['Deadband',w.db,'var(--s4)']];
+      st.innerHTML=segs.map(function(s){return '<span style="width:'+(100*s[1]/w.raw)+'%;background:'+s[2]+'"></span>';}).join('');
+      lg.innerHTML=segs.map(function(s){return '<li><i class="sw" style="background:'+s[2]+'"></i><span class="nm">'+s[0]+'</span><span class="am">'+usd(s[1])+' · '+pct(s[1]/w.raw)+'</span></li>';}).join('')+
+        '<li><i class="sw" style="border:1.5px solid var(--line-2)"></i><span class="nm">Raw gain</span><span class="am">'+usd(w.raw)+'</span></li>';
+    }else{
+      st.innerHTML='<span style="width:100%;background:var(--surface-2)"></span>';
+      lg.innerHTML='<li><span class="nm">No side closes in profit, so there is no haircut to show.</span></li>';
+    }
+
+    renderHeat(p);
+    if(p.adv)updateCharts(p,r);
+  }
+  function kpi(k,v,s){return '<div class="kpi"><div class="k">'+k+'</div><div class="v">'+v+'</div><div class="s">'+s+'</div></div>';}
+
+  function lev2pos(l){return Math.round(1000*Math.log(l)/Math.log(1000));}
+  function pos2lev(x){return Math.max(1,Math.min(1000,Math.round(Math.pow(1000,x/1000))));}
+  function setLev(v){$('lev').value=v;$('levR').value=lev2pos(v);}
+  var lastTick=0;
+
+  var form=$('f');
+  form.addEventListener('input',update);
+  form.addEventListener('change',update);
+  $('levR').addEventListener('input',function(){
+    var v=pos2lev(+this.value); $('lev').value=v;
+    if(v!==lastTick){lastTick=v;buzz(3);}
+  });
+  $('lev').addEventListener('input',function(){var v=parseFloat(this.value);if(v>=1&&v<=1000)$('levR').value=lev2pos(v);});
+  $('levChips').addEventListener('click',function(e){var b=e.target.closest('.chip');if(b){setLev(b.dataset.v);update();}});
+  $('marChips').addEventListener('click',function(e){var b=e.target.closest('.chip');if(b){$('margin').value=b.dataset.v;update();}});
+  $('mvChips').addEventListener('click',function(e){var b=e.target.closest('.chip');if(b){$('mv').value=b.dataset.v;update();}});
+  $('diff').addEventListener('change',function(){
+    var on=$('diff').checked;
+    $('diffBox').hidden=!on; $('sameBox').hidden=on;
+    if(on){var v=$('mv').value;$('ma').value=v;$('mb').value=v;}
+    else{var a=parseFloat($('ma').value);if(isFinite(a))$('mv').value=Math.abs(a);}
+    update();
+  });
+
+  function hmShow(e){var b=e.target.closest('.cell');if(b)$('hmRead').textContent=b.dataset.d;}
+  $('heat').addEventListener('mouseover',hmShow);
+  $('heat').addEventListener('focusin',hmShow);
+  $('heat').addEventListener('click',function(e){
+    var b=e.target.closest('.cell'); if(!b)return;
+    setLev(parseFloat(b.dataset.l));
+    $('mv').value=parseFloat((parseFloat(b.dataset.m)*100).toPrecision(6));
+    if($('diff').checked){$('diff').checked=false;$('diffBox').hidden=true;$('sameBox').hidden=false;}
+    burst(e.clientX,e.clientY);
+    update();
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('input[name=hm]'),function(r){
+    r.addEventListener('change',function(){hmMetric=r.value;if(last)renderHeat(last.p);});
+  });
+
+  function syncPrefs(){
+    $('skin-'+root.getAttribute('data-skin')).checked=true;
+    $('mode-'+root.getAttribute('data-mode')).checked=true;
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('input[name=skin]'),function(r){
+    r.addEventListener('change',function(){
+      root.setAttribute('data-skin',r.value); store('pt-skin',r.value); update();
+      var lb=r.labels&&r.labels[0]; if(lb){var b=lb.getBoundingClientRect();burst(b.left+b.width/2,b.top+b.height/2);}
+      buzz(10);
+    });
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('input[name=mode]'),function(r){
+    r.addEventListener('change',function(){root.setAttribute('data-mode',r.value);store('pt-mode',r.value);update();buzz(8);});
+  });
+  document.addEventListener('click',function(e){if(e.target.closest('.chip,.btn,.seg label,.cell'))buzz(6);});
+
+  var ft;
+  function flash(t){var f=$('flash');f.textContent=t;clearTimeout(ft);ft=setTimeout(function(){f.textContent='';},2500);}
+  function summary(){
+    if(!last)return '';
+    var p=last.p,r=last.r;
+    return 'Hedged trade on Papertrade ('+p.mkt+'): long + short, $'+p.margin+' margin × '+p.lev+'× each, '+
+      (p.diff?'long closes at '+sgn(p.a)+', short at '+sgn(p.b):'both close at a '+mvLabel(p.a)+' move')+
+      '. Net cost '+usd(r.cost)+', PAPER minted '+num(r.paper)+(r.cpp!==null?', cost per PAPER $'+r.cpp.toFixed(4)+' (an unhedged loss costs $'+r.unh.toFixed(4)+')':'')+
+      '. Mint rate '+r.rate.toFixed(1)+' PAPER per $1. Unofficial calculator.';
+  }
+  $('copy').addEventListener('click',function(){
+    var t=summary();
+    function fallback(){
+      var ta=document.createElement('textarea');ta.value=t;ta.setAttribute('readonly','');ta.style.position='absolute';ta.style.left='-9999px';
+      document.body.appendChild(ta);ta.select();
+      var ok=false;try{ok=document.execCommand('copy');}catch(e){}
+      document.body.removeChild(ta);
+      flash(ok?'Copied':'Copy blocked here. Select the numbers manually.');
+    }
+    if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(function(){flash('Copied');},fallback);}
+    else fallback();
+  });
+
+  new MutationObserver(function(){update();}).observe(root,{attributes:true,attributeFilter:['data-theme']});
+
+  window.__pt={run:run,winCalc:winCalc,PM:PM};
+  syncPrefs();
+  update();
+})();
+</script>
+
+</body></html>
